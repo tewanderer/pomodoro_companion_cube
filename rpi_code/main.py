@@ -5,6 +5,10 @@ import time
 
 passive_buzzer = PWM(Pin(0))
 
+green_led = Pin(6,Pin.OUT)
+blue_led = Pin(7,Pin.OUT)
+red_led = Pin(8,Pin.OUT)
+
 notes = [
     (587, 0.09),   # D5
     (740, 0.09),   # F#5
@@ -24,6 +28,8 @@ lcd = GpioLcd(rs_pin=Pin(16),
 
 button=Pin(15, Pin.IN, Pin.PULL_UP)
 
+skip_button=Pin(14, Pin.IN, Pin.PULL_UP)
+
 #button.value() == 1 means not pressed
 #button.value() == 0 means pressed
 
@@ -31,6 +37,14 @@ POMODORO_TIMER = 3
 SHORT_BREAK_TIMER = 4
 LONG_BREAK_TIMER = 5
 
+def beep():
+        red_led.value(1)
+        time.sleep_ms(100)
+        red_led.value(0)
+        passive_buzzer.freq(587)
+        passive_buzzer.duty_u16(30000)
+        time.sleep(0.1)
+        passive_buzzer.duty_u16(0)
 
 def check_pause():
     if button.value() == 0:
@@ -39,6 +53,7 @@ def check_pause():
         #this basically means wait here until the button is released
         while button.value() == 0:
             pass
+        beep()
         
         lcd.clear()
         lcd.putstr("paused")
@@ -49,6 +64,7 @@ def check_pause():
         while button.value() == 1:
             pass
         
+        beep()
         time.sleep_ms(50)
         
         while button.value() == 0:
@@ -57,6 +73,24 @@ def check_pause():
         return True
     
     return False
+
+
+def check_skip():
+    if skip_button.value() == 0:
+        time.sleep_ms(50)
+        
+        # confirm it's still pressed after the bounce settles
+        if skip_button.value() == 0:
+            
+            # wait here until the button is released
+            while skip_button.value() == 0:
+                pass
+            
+            return True
+    
+    return False
+        
+    
         
 def pomodoro():
     time_count=0
@@ -66,6 +100,8 @@ def pomodoro():
     
     while button.value() == 1:
         pass
+    
+    beep()
     
     while button.value() == 0:
         pass
@@ -79,6 +115,8 @@ def pomodoro():
         
         for i in range(100):
             paused = check_pause()
+            skipped = check_skip()
+            
             if paused:
                 lcd.clear()
                 lcd.move_to(0,0)
@@ -86,6 +124,10 @@ def pomodoro():
                 lcd.move_to(0,1)
                 lcd.putstr(str(POMODORO_TIMER - time_count) + " seconds.")
             time.sleep_ms(10)
+            
+            if skipped:
+                beep()
+                return
             
         time_count += 1
         
@@ -99,10 +141,11 @@ def short_break():
     time_count=0
     lcd.clear()
     lcd.putstr("short break?")
-
     
     while button.value() == 1:
         pass
+    
+    beep()
     
     while button.value() == 0:
         pass
@@ -116,6 +159,8 @@ def short_break():
         
         for i in range(100):
             paused = check_pause()
+            skipped = check_skip()
+            
             if paused:
                 lcd.clear()
                 lcd.move_to(0,0)
@@ -123,6 +168,10 @@ def short_break():
                 lcd.move_to(0,1)
                 lcd.putstr(str(SHORT_BREAK_TIMER - time_count) + " seconds.")
             time.sleep_ms(10)
+            
+            if skipped:
+                beep()
+                return
             
         time_count += 1
 
@@ -142,6 +191,8 @@ def long_break():
     while button.value() == 1:
         pass
     
+    beep()
+    
     while button.value() == 0:
         pass
     
@@ -154,6 +205,8 @@ def long_break():
         
         for i in range(100):
             paused = check_pause()
+            skipped = check_skip()
+            
             if paused:
                 lcd.clear()
                 lcd.move_to(0,0)
@@ -161,6 +214,10 @@ def long_break():
                 lcd.move_to(0,1)
                 lcd.putstr(str(LONG_BREAK_TIMER - time_count) + " seconds.")
             time.sleep_ms(10)
+            
+            if skipped:
+                beep()
+                return
             
         time_count += 1
         
@@ -174,5 +231,4 @@ def long_break():
 while True:
     pomodoro()
     short_break()
-    pomodoro()
     long_break()
